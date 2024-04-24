@@ -28,7 +28,7 @@ Program harus berjalan secara daemon dengan jeda 15 detik, dan setiap penghapusa
 
 ### Penyelesaian
 Untuk soal nomor 4, saya membuat dua folder. Folder pertama bernama "target" untuk menyimpan file.txt yang berisi string-string yang akan diubah sesuai ketentuan soal. Sedangkan folder kedua bernama "virusfolder" untuk menyimpan program virus.c serta tempat untuk meletakkan file virus.log.
-#### virus.c
+### virus.c
 ''' bash
 #include <time.h>
 #include <sys/stat.h>
