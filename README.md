@@ -18,10 +18,11 @@
 
 ## Soal 1
 > Nayla 5027231054
+
 Soal nomor 1 meminta kita untuk mereplace beberapa string yang ada di sebuah file dengan ketentuan:
-i. String m4LwAr3 direplace dengan string [MALWARE]
-ii. String 5pYw4R3 direplace dengan string [SPYWARE]
-iii. String R4nS0mWaR3 direplace dengan string [RANSOMWARE]
+1. String m4LwAr3 direplace dengan string [MALWARE]
+2. String 5pYw4R3 direplace dengan string [SPYWARE]
+3. String R4nS0mWaR3 direplace dengan string [RANSOMWARE]
 Program harus berjalan secara daemon dengan jeda 15 detik, dan setiap penghapusan string dicatat dalam file bernama virus.log dengan format isi  [dd-mm-YYYY][HH:MM:SS] Suspicious string at <file_name> successfully replaced!. Program dapat menerima input path berupa ‘argv’ untuk mengatur folder dimana file akan dieksekusi.
 
 ### Penyelesaian
