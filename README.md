@@ -7,14 +7,14 @@
 
 ## Ketentuan
 ### Struktur repository seperti berikut : 
-—soal_1:
-	— virus.c
-—soal_2:
-	— management.c
- —soal_3:
-	— admin.c
-—soal_4:
-	— setup.c
+	—soal_1:
+		— virus.c
+	—soal_2:
+		— management.c
+	 —soal_3:
+		— admin.c
+	—soal_4:
+		— setup.c
 
 ## Soal 1
 > Nayla 5027231054
