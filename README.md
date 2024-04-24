@@ -27,7 +27,7 @@ Soal nomor 1 meminta kita untuk mereplace beberapa string yang ada di sebuah fil
 Program harus berjalan secara daemon dengan jeda 15 detik, dan setiap penghapusan string dicatat dalam file bernama virus.log dengan format isi  [dd-mm-YYYY][HH:MM:SS] Suspicious string at <file_name> successfully replaced!. Program dapat menerima input path berupa ‘argv’ untuk mengatur folder dimana file akan dieksekusi.
 
 ### Penyelesaian
-Untuk soal nomor 4, saya membuat dua folder. Folder pertama bernama "target" untuk menyimpan file.txt yang berisi string-string yang akan diubah sesuai ketentuan soal. Sedangkan folder kedua bernama "virusfolder" untuk menyimpan program virus.c serta tempat untuk meletakkan file virus.log.
+Untuk soal nomor 1, saya membuat dua folder. Folder pertama bernama "target" untuk menyimpan file.txt yang berisi string-string yang akan diubah sesuai ketentuan soal. Sedangkan folder kedua bernama "virusfolder" untuk menyimpan program virus.c serta tempat untuk meletakkan file virus.log.
 ### virus.c
 ```bash
 #include <time.h>
