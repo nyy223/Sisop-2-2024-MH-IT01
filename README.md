@@ -68,4 +68,61 @@ void replace_string_in_file(const char *filepath) {
     FILE *fp = fopen(filepath, "r+");
     if (!fp) return;
 ```
-Masuk ke fungsi kedua, yaitu replace string untuk mengganti string sesuai dengan ketentuan di soal. Pertama-tama, file.txt 
+Masuk ke fungsi kedua, yaitu replace string untuk mengganti string sesuai dengan ketentuan di soal. Pertama-tama, file.txt akan dibuka dengan akses read and write (r+).
+```bash
+fseek(fp, 0, SEEK_END);
+    long fsize = ftell(fp);
+    rewind(fp);
+char *data = (char *)malloc(fsize * 2); // Assume maximum expansion is less than double
+    if (!data) {
+        fclose(fp);
+        return;
+    }
+    fread(data, 1, fsize, fp);
+    data[fsize] = '\0';
+```
+Bagian ini berfungsi untuk mengambil dan menghitung ukuran file, lalu mengalokasikan memori yang tepat untuk file tersebut. Kemudian, konten dan isi dari file.txt akan dibaca menggunakan perintah fread. 
+```bash
+int changed = 0;
+    char *replacements[][2] = {
+        {"m4LwAr3", "[MALWARE]"},
+        {"5pYw4R3", "[SPYWARE]"},
+        {"R4nS0mWaR3", "[RANSOMWARE]"},
+        {NULL, NULL}
+    };
+
+    char *result = malloc(fsize * 2); // Buffer for the result
+    if (!result) {
+        free(data);
+        fclose(fp);
+        return;
+    }
+    strcpy(result, data); // Start with the original content
+```
+Pada bagian kode ini, terdapat array bernama replacement yang berisi list-list string yang akan diganti beserta string penggantinya. Setelah itu, akan dialokasikan memori untuk variabel result. Variabel result digunakan untuk menyimpan isi file yang sudah dimodifikasi stringnya. 
+```bash
+    for (int i = 0; replacements[i][0] != NULL; i++) {
+        char *pos = result;
+        char *temp;
+        while ((pos = strstr(pos, replacements[i][0])) != NULL) {
+            temp = strdup(pos + strlen(replacements[i][0])); // Save the tail
+            memcpy(pos, replacements[i][1], strlen(replacements[i][1]));
+            strcpy(pos + strlen(replacements[i][1]), temp);
+            pos += strlen(replacements[i][1]); // Move past the replacement
+            free(temp);
+            changed = 1;
+        }
+    }
+
+    if (changed) {
+        fseek(fp, 0, SEEK_SET);
+        fwrite(result, 1, strlen(result), fp);
+        truncate(filepath, strlen(result)); // Adjust the file size
+        log_replacement(filepath);
+    }
+    free(data);
+    free(result);
+    fclose(fp);
+}
+```
+Terdapat 
