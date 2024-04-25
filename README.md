@@ -126,3 +126,379 @@ Pada bagian kode ini, terdapat array bernama replacement yang berisi list-list s
 }
 ```
 Terdapat 
+
+## Soal 3
+> Rafa 5027231019
+### Soal
+#### Pak Heze adalah seorang admin yang baik. Beliau ingin membuat sebuah program admin yang dapat memantau para pengguna sistemnya. Bantulah Pak Heze untuk membuat program  tersebut!
+#### a). Nama program tersebut dengan nama admin.c
+#### b). Program tersebut memiliki fitur menampilkan seluruh proses yang dilakukan oleh seorang user dengan menggunakan command:
+#### ./admin <user>
+#### c). Program dapat memantau proses apa saja yang dilakukan oleh user. Fitur ini membuat program berjalan secara daemon dan berjalan terus menerus. Untuk menjalankan fitur ini menggunakan command: 
+#### ./admin -m <user>
+#### Dan untuk mematikan fitur tersebut menggunakan: 
+#### ./admin -s <user>
+#### Program akan mencatat seluruh proses yang dijalankan oleh user di file <user>.log dengan format:
+#### [dd:mm:yyyy]-[hh:mm:ss]_pid-process_nama-process_GAGAL/JALAN
+#### d). Program dapat menggagalkan proses yang dijalankan user setiap detik secara terus menerus dengan menjalankan: 
+#### ./admin -c user
+#### sehingga user tidak bisa menjalankan proses yang dia inginkan dengan baik. Fitur ini dapat dimatikan dengan command:
+#### ./admin -a user
+#### e). Ketika proses yang dijalankan user digagalkan, program juga akan melog dan menset log tersebut sebagai GAGAL. Dan jika di log menggunakan fitur poin c, log akan ditulis dengan JALAN
+
+### Penyelesaian
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include <sys/wait.h>
+	#include <sys/types.h>
+	#include <string.h>
+	#include <time.h>
+	#include <signal.h>
+	
+	#define PID_FILE "daemon.pid"
+	#define STATUS_FILE "status.txt"
+	
+	int daemon_pid = -1;
+	
+	void log_activity(char *user, char *activity, int success) {
+	    FILE *fp;
+	    char filename[50];
+	    time_t current_time;
+	    struct tm *local_time;
+	    char timestamp[50];
+	
+	    time(&current_time);
+	    local_time = localtime(&current_time);
+	    strftime(timestamp, sizeof(timestamp), "%d:%m:%Y-%H:%M:%S", local_time);
+	
+	    snprintf(filename, sizeof(filename), "%s.log", user);
+	    fp = fopen(filename, "a");
+	
+	    if (fp != NULL) {
+	        fprintf(fp, "[%s]-%d-%s_%s\n", timestamp, getpid(), activity, success ? "JALAN" : "GAGAL");
+	        fclose(fp);
+	    } else {
+	        printf("Failed to open log file for user %s.\n", user);
+	    }
+	}
+	
+	int read_status() {
+	    FILE *status_file = fopen(STATUS_FILE, "r");
+	    int blocked = 0;
+	    if (status_file != NULL) {
+	        fscanf(status_file, "%d", &blocked);
+	        fclose(status_file);
+	    }
+	    return blocked;
+	}
+	
+	void block_internet() {
+	    system("iptables -A OUTPUT -d google.com -j DROP");
+	}
+	
+	void allow_internet() {
+	    system("iptables -D OUTPUT -d google.com -j DROP");
+	}
+	
+	void monitor_activity(char *user) {
+	    int blocked = read_status();
+	    if (blocked) {
+	        log_activity(user, "Monitoring activity", 0);
+	        printf("Monitoring activity failed for user %s.\n", user);
+	        return;
+	    }
+	
+	    pid_t pid;
+	    FILE *pid_file;
+	
+	    pid = fork();
+	
+	    if (pid == 0) {
+	        setsid();
+	        while (1) {
+	            blocked = read_status();
+	            if (blocked) {
+	                break;
+	            }
+	            log_activity(user, "Monitoring activity", 1);
+	            sleep(1);
+	        }
+	        exit(0);
+	    } else if (pid > 0) {
+	        daemon_pid = pid;
+	        pid_file = fopen(PID_FILE, "w");
+	        if (pid_file != NULL) {
+	            fprintf(pid_file, "%d", daemon_pid);
+	            fclose(pid_file);
+	        }
+	        printf("Monitoring started for user %s.\n", user);
+	    } else {
+	        printf("Fork failed.\n");
+	    }
+	}
+	
+	void stop_monitoring(char *user) {
+	    int blocked = read_status();
+	    if (blocked) {
+	        log_activity(user, "Stopping monitoring", 0);
+	        printf("Stopping monitoring failed for user %s.\n", user);
+	        return;
+	    }
+	
+	    FILE *pid_file;
+	    int pid;
+	
+	    pid_file = fopen(PID_FILE, "r");
+	    if (pid_file != NULL) {
+	        fscanf(pid_file, "%d", &pid);
+	        fclose(pid_file);
+	        if (pid > 0) {
+	            kill(pid, SIGTERM);
+	            remove(PID_FILE);
+	            daemon_pid = -1;
+	            log_activity(user, "Stopping monitoring", 1);
+	            printf("Monitoring stopped for user %s.\n", user);
+	        } else {
+	            printf("No running monitoring process found for user %s.\n", user);
+	        }
+	    } else {
+	        printf("No running monitoring process found for user %s.\n", user);
+	    }
+	}
+	
+	void block_activity(char *user) {
+	    FILE *status_file = fopen(STATUS_FILE, "w");
+	    if (status_file != NULL) {
+	        fprintf(status_file, "1");
+	        fclose(status_file);
+	        block_internet();
+	        log_activity(user, "Blocking activity", 1);
+	        printf("Activity blocked for user %s.\n", user);
+	    } else {
+	        printf("Failed to open status file.\n");
+	    }
+	}
+	
+	void allow_activity(char *user) {
+	    FILE *status_file = fopen(STATUS_FILE, "w");
+	    if (status_file != NULL) {
+	        fprintf(status_file, "0");
+	        fclose(status_file);
+	        allow_internet(); // Add this line to allow internet access
+	        log_activity(user, "Allowing activity", 1);
+	        printf("Activity allowed for user %s.\n", user);
+	    } else {
+	        printf("Failed to open status file.\n");
+	    }
+	}
+	
+	void sigterm_handler(int signum) {
+	    printf("Received SIGTERM signal. Exiting.\n");
+	    exit(signum);
+	}
+	
+	int main(int argc, char *argv[]) {
+	    signal(SIGTERM, sigterm_handler);
+	
+	    if (argc < 3) {
+	        printf("-m membuat program berjalan secara daemon dan berjalan terus menerus\n-s mematikan program yang berjalan secara daemon dan berjalan terus menerus\n-c menggagalkan proses yang dijalankan user setiap detik secara terus menerus\n-a mengembalikan akses untuk menjalankan user setiap detik secara terus menerus\n", argv[0]);
+	        return 1;
+	    }
+	
+	    char *option = argv[1];
+	    char *user = argv[2];
+	
+	    if (strcmp(option, "-m") == 0) {
+	        monitor_activity(user);
+	    } else if (strcmp(option, "-s") == 0) {
+	        stop_monitoring(user);
+	    } else if (strcmp(option, "-c") == 0) {
+	        block_activity(user);
+	    } else if (strcmp(option, "-a") == 0) {
+	        allow_activity(user);
+	    } else {
+	        printf("Invalid option.\n");
+	        return 1;
+	    }
+	
+	    return 0;
+	}
+
+### Penjelasan
+#### - Pertama, kita bikin sebuah program yang bernama "admin.c" menggunakan:
+	touch admin.c
+
+#### - Kemudian, pada bagian (b), kita diminta untuk membuat agar program tersebut memiliki fitur menampilkan seluruh proses yang dilakukan oleh seorang user dengan menggunakan command ./admin <user>
+	    if (argc < 3) {
+	        printf("-m membuat program berjalan secara daemon dan berjalan terus menerus\n-s mematikan program yang berjalan secara daemon dan berjalan terus menerus\n-c menggagalkan proses yang dijalankan user setiap detik secara terus menerus\n-a mengembalikan akses untuk menjalankan user setiap detik secara terus menerus\n", argv[0]);
+	        return 1;
+	    }
+##### Program ini memberikan opsi untuk memulai, menghentikan, memblokir, dan mengembalikan akses monitoring secara terus menerus. Hal ini memungkinkan pengguna untuk mengatur dan memantau aktivitas dengan fleksibilitas dalam lingkungan yang berjalan secara terus menerus. Jadi, saat kita melakukan ./admin <user>, ini akan menampilkan fitur-fitur yang dapat digunakan oleh pengguna.
+
+#### Lalu, pada bagian (c), kita diminta untuk membuat program berjalan secara daemon dan berjalan terus menerus. Untuk menjalankan fitur ini menggunakan command ./admin -m <user> dan untuk mematikan fitur tersebut menggunakan ./admin -s <user>. KIta diminta juga agar program mencatat seluruh proses yang dijalankan oleh user di file <user>.log dengan format [dd:mm:yyyy]-[hh:mm:ss]_pid-process_nama-process_GAGAL/JALAN.
+	void log_activity(char *user, char *activity, int success) {
+	    FILE *fp;
+	    char filename[50];
+	    time_t current_time;
+	    struct tm *local_time;
+	    char timestamp[50];
+	
+	    time(&current_time);
+	    local_time = localtime(&current_time);
+	    strftime(timestamp, sizeof(timestamp), "%d:%m:%Y-%H:%M:%S", local_time);
+	
+	    snprintf(filename, sizeof(filename), "%s.log", user);
+	    fp = fopen(filename, "a");
+	
+	    if (fp != NULL) {
+	        fprintf(fp, "[%s]-%d-%s_%s\n", timestamp, getpid(), activity, success ? "JALAN" : "GAGAL");
+	        fclose(fp);
+	    } else {
+	        printf("Failed to open log file for user %s.\n", user);
+	    }
+	}	
+ 
+ 	void monitor_activity(char *user) {
+	    int blocked = read_status();
+	    if (blocked) {
+	        log_activity(user, "Monitoring activity", 0);
+	        printf("Monitoring activity failed for user %s.\n", user);
+	        return;
+	    }
+	
+	    pid_t pid;
+	    FILE *pid_file;
+	
+	    pid = fork();
+	
+	    if (pid == 0) {
+	        setsid();
+	        while (1) {
+	            blocked = read_status();
+	            if (blocked) {
+	                break;
+	            }
+	            log_activity(user, "Monitoring activity", 1);
+	            sleep(1);
+	        }
+	        exit(0);
+	    } else if (pid > 0) {
+	        daemon_pid = pid;
+	        pid_file = fopen(PID_FILE, "w");
+	        if (pid_file != NULL) {
+	            fprintf(pid_file, "%d", daemon_pid);
+	            fclose(pid_file);
+	        }
+	        printf("Monitoring started for user %s.\n", user);
+	    } else {
+	        printf("Fork failed.\n");
+	    }
+	}
+	
+	void stop_monitoring(char *user) {
+	    int blocked = read_status();
+	    if (blocked) {
+	        log_activity(user, "Stopping monitoring", 0);
+	        printf("Stopping monitoring failed for user %s.\n", user);
+	        return;
+	    }
+	
+	    FILE *pid_file;
+	    int pid;
+	
+	    pid_file = fopen(PID_FILE, "r");
+	    if (pid_file != NULL) {
+	        fscanf(pid_file, "%d", &pid);
+	        fclose(pid_file);
+	        if (pid > 0) {
+	            kill(pid, SIGTERM);
+	            remove(PID_FILE);
+	            daemon_pid = -1;
+	            log_activity(user, "Stopping monitoring", 1);
+	            printf("Monitoring stopped for user %s.\n", user);
+	        } else {
+	            printf("No running monitoring process found for user %s.\n", user);
+	        }
+	    } else {
+	        printf("No running monitoring process found for user %s.\n", user);
+	    }
+	}
+##### Pada program ini, fungsi log_activity digunakan untuk mencatat aktivitas pengguna dalam sebuah file log dengan format waktu, aktivitas, dan status. Fungsi monitor_activity mengawasi aktivitas pengguna dengan menggunakan proses daemon. Jika ada blok pada status, fungsi ini akan mencatat kegagalan monitoring. Fungsi stop_monitoring digunakan untuk menghentikan proses monitoring yang sedang berjalan, mencatatnya dalam log jika berhasil, dan memberikan pesan kesalahan jika gagal.
+
+#### - Selanjutnya, pada bagian (d), kita diminta agar program dapat menggagalkan proses yang dijalankan user setiap detik secara terus menerus dengan menjalankan ./admin -c user sehingga user tidak bisa menjalankan proses yang dia inginkan dengan baik. Fitur ini dapat dimatikan dengan command ./admin -a user.
+	int read_status() {
+	    FILE *status_file = fopen(STATUS_FILE, "r");
+	    int blocked = 0;
+	    if (status_file != NULL) {
+	        fscanf(status_file, "%d", &blocked);
+	        fclose(status_file);
+	    }
+	    return blocked;
+	}
+	
+	void block_internet() {
+	    system("iptables -A OUTPUT -d google.com -j DROP");
+	}
+	
+	void allow_internet() {
+	    system("iptables -D OUTPUT -d google.com -j DROP");
+	}
+ 	void block_activity(char *user) {
+	    FILE *status_file = fopen(STATUS_FILE, "w");
+	    if (status_file != NULL) {
+	        fprintf(status_file, "1");
+	        fclose(status_file);
+	        block_internet();
+	        log_activity(user, "Blocking activity", 1);
+	        printf("Activity blocked for user %s.\n", user);
+	    } else {
+	        printf("Failed to open status file.\n");
+	    }
+	}
+	
+	void allow_activity(char *user) {
+	    FILE *status_file = fopen(STATUS_FILE, "w");
+	    if (status_file != NULL) {
+	        fprintf(status_file, "0");
+	        fclose(status_file);
+	        allow_internet(); // Add this line to allow internet access
+	        log_activity(user, "Allowing activity", 1);
+	        printf("Activity allowed for user %s.\n", user);
+	    } else {
+	        printf("Failed to open status file.\n");
+	    }
+	}
+##### Pada program ini, fungsi read_status digunakan untuk membaca status dari file STATUS_FILE, yang menunjukkan apakah aktivitas pengguna sedang diblokir atau tidak. Fungsi block_internet digunakan untuk memblokir akses internet ke google.com menggunakan iptables. Fungsi allow_internet digunakan untuk mengizinkan kembali akses internet ke google.com dengan menghapus aturan iptables yang sebelumnya dibuat. Fungsi block_activity digunakan untuk memblokir aktivitas pengguna dengan menulis nilai "1" ke file status, menjalankan fungsi block_internet, dan mencatat aktivitas tersebut dalam log. Fungsi allow_activity digunakan untuk mengizinkan kembali aktivitas pengguna dengan menulis nilai "0" ke file status, menjalankan fungsi allow_internet, dan mencatat aktivitas tersebut dalam log.
+
+#### - Terakhir, pada bagian (e), kita diminta agar ketika proses yang dijalankan user digagalkan, program juga akan melog dan menset log tersebut sebagai GAGAL. Dan jika di log menggunakan fitur poin c, log akan ditulis dengan JALAN.
+	    if (fp != NULL) {
+	        fprintf(fp, "[%s]-%d-%s_%s\n", timestamp, getpid(), activity, success ? "JALAN" : "GAGAL");
+	        fclose(fp);
+	    } else {
+	        printf("Failed to open log file for user %s.\n", user);
+	    }
+	}
+##### Program ini bertugas untuk mencatat aktivitas pengguna ke dalam file log. Jika file log berhasil dibuka (fp != NULL), fungsi fprintf akan menulis data aktivitas ke dalam file log. Data yang ditulis meliputi timestamp (waktu saat aktivitas terjadi), PID proses, deskripsi aktivitas, dan status keberhasilan aktivitas ("JALAN" atau "GAGAL" berdasarkan parameter success). Setelah penulisan selesai, file log akan ditutup dengan fungsi fclose(fp). Jika file log gagal dibuka, maka program akan mencetak pesan kesalahan menggunakan printf.
+
+### Revisi
+#### Pada saat demo, ada sedikit kesalahan dimana saat saya melakukan ./admin -c <user> untuk memblokir akses pengguna, saya tetap bisa mengakses internet dan seharusnya itu tidak bisa. Jadi disini saya melakukan sedikit perbaikan, yaitu dengan menambahkan:
+	void block_internet() {
+	    system("iptables -A OUTPUT -d google.com -j DROP");
+	}
+	
+	void allow_internet() {
+	    system("iptables -D OUTPUT -d google.com -j DROP");
+	}
+##### Pada program ini, fungsi block_internet digunakan untuk memblokir akses internet ke google.com dengan menambahkan aturan pada iptables menggunakan perintah sistem. Sedangkan fungsi allow_internet digunakan untuk mengizinkan kembali akses internet ke google.com dengan menghapus aturan yang sebelumnya ditambahkan pada iptables menggunakan perintah sistem.
+
+### Dokumentasi
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/9ff82512-9c2b-4d9c-803a-bd17f80381f9)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/2b83dd6f-ad5e-4967-b589-5fb6c7030d5a)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/f497aae0-04d0-4b2b-974a-582965e30ffa)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/bee3f740-b05b-4166-a7a6-c279b49bc01a)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/27f9429e-1925-4882-b5e1-011ac71205c9)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/5819060d-0e07-4723-80ec-7001c22ff5f3)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/59f205ef-5ee3-44e8-8659-450c6445538f)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/b24e1b3b-4286-4ae4-a812-b3beb9d760ea)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/85719c9f-9531-4333-b0a0-e17afb7d743a)
