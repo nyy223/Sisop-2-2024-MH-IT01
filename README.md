@@ -125,8 +125,61 @@ Pada bagian kode ini, terdapat array bernama replacement yang berisi list-list s
     fclose(fp);
 }
 ```
-Terdapat 
+Terdapat variabel pos yang berfungsi untuk menunjuk ke string yang akan diubah sesuai ketentuan soal, sedangkan variabel temp untuk menyimpan sisa string yang tidak diubah. Loop while berfungsi untuk mengganti string yang diinginkan sesuai dengan ketentuan di soal. Variabel pos akan menunjuk ke lokasi setelahnya, agar loop terus berjalan untuk mengganti string yang lain. Loop akan terus berjalan selama terdapat string yang masih belum diubah. 
 
+Nilai pada variabel "changed" akan diset untuk berubah menjadi 1 untuk menandakan bahwa telah terjadi proses pergantian pada string. Jika terjadi perubahan, maka file akan ditulis kembali dengan isi file yang baru. Fungsi log_replacement dipanggil untuk mencatat perubahan dan menyimpannya ke dalam file virus.log.
+```bash
+void run_daemon(const char *dir_path) {
+    pid_t pid = fork();
+    if (pid > 0) {
+        exit(EXIT_SUCCESS);
+    } else if (pid < 0) {
+        exit(EXIT_FAILURE);
+    }
+
+    umask(0);
+    setsid();
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    while (1) {
+        DIR *d = opendir(dir_path);
+        if (d) {
+            struct dirent *dir;
+            while ((dir = readdir(d)) != NULL) {
+                if (dir->d_type == DT_REG) {
+                    char path[1024];
+                    sprintf(path, "%s/%s", dir_path, dir->d_name);
+                    replace_string_in_file(path);
+                }
+            }
+            closedir(d);
+        }
+        sleep(15); // wait for 15 seconds
+    }
+}
+```
+Potongan kode di atas berfungsi untuk menjalankan program secara daemon, yang didalamnya akan dilakukan pemanggilan terhadap fungsi replace string untuk melakukan pergantian pada string. Program akan di set untuk terus berjalan di background dengan jeda 15 detik.
+```bash
+int main(int argc, char **argv) {
+     FILE *logFile = fopen(LOG_FILE, "a");
+    if (logFile == NULL) {
+        perror("Error creating log file");
+        return EXIT_FAILURE;
+    }
+    fclose(logFile);
+    
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s <directory>\n", argv[0]);
+        return EXIT_FAILURE;
+    }
+
+    run_daemon(argv[1]);
+    return EXIT_SUCCESS;
+}
+```
+Potongan kode di atas adalah fungsi main. Pertama, file log akan dibuka terlebih dahulu dan akan dibuat file log baru jika belum terbuat sebelumnya. Selanjutnya, akan dilakukan pengecekan kondisi if. Jika argumen yang diberikan oleh user kurang dari 2, atau tidak memenuhi sesuai dengan ketentuan yang ada di soal (dapat menerima input path berupa 'argv'), maka program tidak akan berjalan. Sedangkan jika sudah memenuhi, maka akan dijalankan program virus.c secara daemon. 
 ## Soal 3
 > Rafa 5027231019
 ### Soal
