@@ -1394,6 +1394,7 @@ int main(int argc, char *argv[]) {
 Terdapat pesan "No running application", padahal aplikasi yang diinginkan sedang terbuka.
 
 #### Kendala yang dialami
+Kendala saat menggunakan kode baru yang sudah direvisi :
 <img width="1440" alt="Screenshot 2024-04-27 at 19 56 30" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/8b763ce8-560c-43db-a417-3fcfe1ee5c0c">
 Terdapat pesan exiting due to channel error saat ingin mematikan aplikasi yang dibuka dari command line
 <img width="1440" alt="Screenshot 2024-04-27 at 19 59 22" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/33895949-31c2-40a0-bc5f-eb10d298a940">
