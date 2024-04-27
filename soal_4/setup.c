@@ -6,58 +6,48 @@
 #include <signal.h>
 
 #define MAX_APPS 20
+#define MAX_NAME_LENGTH 100
 
 typedef struct {
-    char config_name[100];
-    int pids[MAX_APPS*3];
+    char config_name[MAX_NAME_LENGTH];
+    int pids[MAX_APPS * 3];
     int pid_count;
 } AppRecord;
 
-AppRecord records[MAX_APPS];
-int record_count = 0;
-
 void launch_applications(char *apps[], int counts[], int n, const char* source) {
-    int index = -1;
-    for (int i = 0; i < record_count; i++) {
-        if (strcmp(records[i].config_name, source) == 0) {
-            index = i;
-            break;
-        }
-    }
-    if (index == -1) {
-        index = record_count++;
-        strcpy(records[index].config_name, source);
-        records[index].pid_count = 0;
-    }
-
     pid_t pid;
     for (int i = 0; i < n; i++) {
         for (int j = 0; j < counts[i]; j++) {
             pid = fork();
             if (pid == 0) {
-                // Child process
                 execlp(apps[i], apps[i], NULL);
                 perror("Failed to start application");
                 exit(1);
-            } else if (pid > 0) {
-                records[index].pids[records[index].pid_count++] = pid;
             }
         }
     }
 }
 
 void kill_applications_from_command_line() {
-    for (int i = 0; i < record_count; i++) {
-        if (strcmp(records[i].config_name, "command-line") == 0) {
-            for (int j = 0; j < records[i].pid_count; j++) {
-                kill(records[i].pids[j], SIGTERM);
-            }
-            records[i].pid_count = 0;  
-            printf("Applications from command-line have been terminated.\n");
-            return;
-        }
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("pkill", "pkill", "firefox", NULL);
+        exit(0);
+    } else if (pid < 0) {
+        perror("Error: Fork failed");
+    } else {
+        wait(NULL);
     }
-    printf("No running applications found from command-line.\n");
+
+    pid = fork();
+    if (pid == 0) {
+        execlp("pkill", "pkill", "gedit", NULL);
+        exit(0);
+    } else if (pid < 0) {
+        perror("Error: Fork failed");
+    } else {
+        wait(NULL);
+    }
 }
 
 void kill_applications_from_config(const char* source) {
@@ -66,26 +56,20 @@ void kill_applications_from_config(const char* source) {
         perror("Failed to open file");
         return;
     }
-
-    int found = 0;
-    for (int i = 0; i < record_count; i++) {
-        if (strcmp(records[i].config_name, source) == 0) {
-            for (int j = 0; j < records[i].pid_count; j++) {
-                kill(records[i].pids[j], SIGTERM);
-            }
-            records[i].pid_count = 0;  
-            found = 1;
-            printf("Applications from %s have been terminated.\n", source);
+    char app[MAX_NAME_LENGTH];
+    while (fscanf(file, "%s", app) == 1) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            execlp("pkill", "pkill", app, NULL);
+            exit(0);
+        } else if (pid < 0) {
+            perror("Error: Fork failed");
+        } else {
+            wait(NULL);
         }
     }
-
     fclose(file);
-
-    if (!found) {
-        printf("No running applications found from %s.\n", source);
-    }
 }
-
 
 void read_config_and_launch(const char *filename) {
     FILE *file = fopen(filename, "r");
@@ -94,7 +78,7 @@ void read_config_and_launch(const char *filename) {
         return;
     }
 
-    char app[100];
+    char app[MAX_NAME_LENGTH];
     int count;
     char *apps[MAX_APPS];
     int counts[MAX_APPS];
@@ -109,7 +93,8 @@ void read_config_and_launch(const char *filename) {
     fclose(file);
     launch_applications(apps, counts, n, filename);
 
-    for (int i = 0; i < n; i++) free(apps[i]);
+    for (int i = 0; i < n; i++) 
+        free(apps[i]);
 }
 
 int main(int argc, char *argv[]) {
@@ -142,5 +127,6 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Invalid command or arguments\n");
         return 1;
     }
+
     return 0;
 }
