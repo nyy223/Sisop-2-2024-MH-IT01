@@ -334,7 +334,8 @@ if (file != NULL) {
 
 Screenshot dari keberhasilan seluruh fitur program ini adalah sebagai berikut:
 
-![alt](https://cdn.discordapp.com/attachments/1164912781678624779/1233806682203750420/Screenshot_2024-04-27_22_45_39.png?ex=662e6f84&is=662d1e04&hm=e97d7ccd11c1de516fb3fa20e5a1c82d8eab0806cbb853de292339dc6c52d364&)
+![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/162680331/38d1dfc4-db17-40e0-a081-b43ace9ead4d)
+
 
 #### Kendala yang dialami
 sebelumnya masih menggunakan command system untuk membuat folder library dan backup, serta hanya selesai sampai download dan ekstrak file saja.
