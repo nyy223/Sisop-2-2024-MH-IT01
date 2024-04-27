@@ -181,10 +181,10 @@ int main(int argc, char **argv) {
 ```
 Potongan kode di atas adalah fungsi main. Pertama, file log akan dibuka terlebih dahulu dan akan dibuat file log baru jika belum terbuat sebelumnya. Selanjutnya, akan dilakukan pengecekan kondisi if. Jika argumen yang diberikan oleh user kurang dari 2, atau tidak memenuhi sesuai dengan ketentuan yang ada di soal (dapat menerima input path berupa 'argv'), maka program tidak akan berjalan. Sedangkan jika sudah memenuhi, maka akan dijalankan program virus.c secara daemon. 
 
-### Dokumentasi Pengerjaan
+#### Dokumentasi Pengerjaan
 <img width="1440" alt="Screenshot 2024-04-27 at 07 25 26" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/b2d2c8a3-70d1-4002-90ef-0199ab244854">
 
-### Kendala yang dialami
+#### Kendala yang dialami
 File virus.log sempat tidak terbuat saat sudah menjalankan program, karena perintah untuk membuka file dan membuatnya jika belum ada belum saya letakkan di fungsi main.
 ![kendala no1](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/304d58a5-cd81-4d9d-aa54-80a39500bbaa)
 
