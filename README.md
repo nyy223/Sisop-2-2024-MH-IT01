@@ -1,4 +1,4 @@
-![kendala no1](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/e16a8660-b629-444a-9462-06ac27785576)# Laporan Resmi Praktikum Sisop-2-2024-MH-IT01
+# Laporan Resmi Praktikum Sisop-2-2024-MH-IT01
 
 ## Anggota
 ### Nayla Raissa Azzahra (5027231054)
