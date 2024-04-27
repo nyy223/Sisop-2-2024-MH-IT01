@@ -1125,7 +1125,7 @@ void kill_applications_from_command_line() {
 * exit(0);: Setelah menjalankan perintah untuk menutup aplikasi, proses anak keluar (exit) dengan kode keluar 0, menandakan bahwa proses tersebut berhasil.
 * else if (pid < 0) { perror("Error: Fork failed"); }: Jika fork() gagal, pesan kesalahan akan dicetak menggunakan perror().
 * else { wait(NULL); }: Di dalam blok else, proses induk menunggu (wait()) hingga proses anak selesai. Ini memastikan bahwa proses induk tidak berlanjut sampai proses anak selesai dieksekusi.
-* Kode serupa berlaku untuk menutup aplikasi gedit. Proses akan bercabang lagi untuk menjalankan perintah pkill gedit.
+* Kode serupa berlaku untuk menutup aplikasi gedit dan libreoffice. Proses akan bercabang lagi untuk menjalankan perintah pkill.
 ```bash
 void kill_applications_from_config(const char* source) {
     FILE *file = fopen(source, "r");
