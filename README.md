@@ -1061,3 +1061,175 @@ Adalah beberapa libraries yang digunakan dalam kode ini. Fungsi dari masing-masi
 * #include <unistd.h>: Mendefinisikan fungsi-fungsi standar untuk sistem operasi POSIX (Portable Operating System Interface).
 * #include <sys/wait.h>: Mendefinisikan fungsi-fungsi untuk mengelola proses yang sedang menunggu.
 * #include <signal.h>: Mendefinisikan fungsi-fungsi untuk penanganan sinyal.
+```bash
+#define MAX_APPS 20
+#define MAX_NAME_LENGTH 100
+```
+Mendefinisikan maksimum jumlah aplikasi yang dapat dibuka dan panjang maksimum nama aplikasi yang akan dibuka.
+```bash
+typedef struct {
+    char config_name[MAX_NAME_LENGTH];
+    int pids[MAX_APPS * 3];
+    int pid_count;
+} AppRecord;
+```
+Mendefinisikan struktur data AppRecord yang menyimpan data mengenai konfigurasi aplikasi yang akan dibuka.
+```bash
+void launch_applications(char *apps[], int counts[], int n, const char* source) {
+    pid_t pid;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < counts[i]; j++) {
+            pid = fork();
+            if (pid == 0) {
+                // Child process
+                execlp(apps[i], apps[i], NULL);
+                perror("Failed to start application");
+                exit(1);
+            }
+        }
+    }
+}
+```
+* pid_t pid;: Deklarasi variabel pid untuk menyimpan ID proses.
+* for (int i = 0; i < n; i++) {: Looping melalui setiap aplikasi yang akan diluncurkan.
+* for (int j = 0; j < counts[i]; j++) {: Looping sebanyak instance yang akan diluncurkan dari aplikasi saat ini.
+* pid = fork();: Memulai proses baru dengan fork(). Proses baru akan menjadi salinan identik dari proses induk.
+* if (pid == 0) {: Periksa apakah ini adalah proses anak. Bagian dalam kondisi ini hanya akan dieksekusi oleh proses anak.
+* execlp(apps[i], apps[i], NULL);: Gantikan image proses saat ini dengan aplikasi yang diinginkan menggunakan execlp(). Argument pertama adalah nama aplikasi, yang kedua adalah argumen yang akan diberikan kepada aplikasi (NULL karena tidak ada argumen tambahan).
+```bash
+void kill_applications_from_command_line() {
+    pid_t pid = fork();
+    if (pid == 0) {
+        execlp("pkill", "pkill", "firefox", NULL);
+        exit(0);
+    } else if (pid < 0) {
+        perror("Error: Fork failed");
+    } else {
+        wait(NULL);
+    }
+
+    pid = fork();
+    if (pid == 0) {
+        execlp("pkill", "pkill", "gedit", NULL);
+        exit(0);
+    } else if (pid < 0) {
+        perror("Error: Fork failed");
+    } else {
+        wait(NULL);
+    }
+}
+```
+* pid_t pid = fork();: Memanggil fungsi fork() untuk membuat proses baru. Proses baru akan memiliki salinan identik dari proses pemanggil (proses induk). Nilai pid akan berbeda di proses induk dan anak. Jika fork() berhasil, nilai pid akan positif dan akan bernilai 0 di proses anak.
+* if (pid == 0) { ... } else if (pid < 0) { ... } else { ... }: Memeriksa nilai pid untuk menentukan apakah proses yang baru dibuat adalah proses anak, proses induk, atau jika fork() gagal.
+* execlp("pkill", "pkill", "firefox", NULL);: Di dalam blok if (pid == 0), proses anak akan menjalankan perintah pkill untuk menutup aplikasi firefox. Fungsi execlp() digunakan untuk menjalankan program dengan menyediakan argumen baris perintah. Argumen pertama adalah nama program yang akan dijalankan (pkill), diikuti oleh argumen-argumen yang akan diteruskan ke program tersebut. NULL menandakan akhir dari daftar argumen.
+* exit(0);: Setelah menjalankan perintah untuk menutup aplikasi, proses anak keluar (exit) dengan kode keluar 0, menandakan bahwa proses tersebut berhasil.
+* else if (pid < 0) { perror("Error: Fork failed"); }: Jika fork() gagal, pesan kesalahan akan dicetak menggunakan perror().
+* else { wait(NULL); }: Di dalam blok else, proses induk menunggu (wait()) hingga proses anak selesai. Ini memastikan bahwa proses induk tidak berlanjut sampai proses anak selesai dieksekusi.
+* Kode serupa berlaku untuk menutup aplikasi gedit. Proses akan bercabang lagi untuk menjalankan perintah pkill gedit.
+```bash
+void kill_applications_from_config(const char* source) {
+    FILE *file = fopen(source, "r");
+    if (!file) {
+        perror("Failed to open file");
+        return;
+    }
+    char app[MAX_NAME_LENGTH];
+    while (fscanf(file, "%s", app) == 1) {
+        pid_t pid = fork();
+        if (pid == 0) {
+            execlp("pkill", "pkill", app, NULL);
+            exit(0);
+        } else if (pid < 0) {
+            perror("Error: Fork failed");
+        } else {
+            wait(NULL);
+        }
+    }
+    fclose(file);
+}
+```
+* FILE *file = fopen(source, "r");: Fungsi fopen digunakan untuk membuka file dengan mode "r" yang berarti untuk membaca (read). source adalah parameter yang berisi nama file konfigurasi yang akan dibaca. 
+* char app[MAX_NAME_LENGTH];: Membuat sebuah array karakter app dengan panjang maksimum MAX_NAME_LENGTH. Ini akan digunakan untuk menyimpan nama aplikasi yang dibaca dari file konfigurasi.
+* while (fscanf(file, "%s", app) == 1) {: Menggunakan loop while untuk membaca setiap baris dari file konfigurasi. fscanf membaca string dari file dan menyimpannya di dalam app. Loop akan terus berjalan selama fscanf berhasil membaca satu elemen (dalam hal ini, satu nama aplikasi).
+* pid_t pid = fork();: Membuat proses baru dengan fork(). Proses baru ini akan digunakan untuk menutup aplikasi yang sesuai dengan nama yang dibaca.
+* if (pid == 0) {: Ini adalah cabang yang dijalankan oleh child process (proses anak) setelah berhasil di-fork.
+* execlp("pkill", "pkill", app, NULL);: Memanggil execlp untuk menjalankan perintah pkill dari shell. pkill adalah perintah yang digunakan untuk menutup proses berdasarkan nama aplikasi. Argument app digunakan untuk menentukan nama aplikasi yang akan ditutup. Argument NULL menandakan akhir dari daftar argumen.
+* exit(0);: Keluar dari proses anak setelah menjalankan perintah pkill. Ini menghindari proses anak untuk melanjutkan ke loop selanjutnya.
+* else if (pid < 0) { perror("Error: Fork failed"); }: Ini adalah cabang yang dijalankan jika proses gagal di-fork. Pesan kesalahan dicetak menggunakan perror.
+* else { wait(NULL); }: Ini adalah cabang yang dijalankan oleh proses parent (proses induk). Ini menunggu proses anak selesai dengan wait(NULL). Ini memastikan bahwa proses parent tidak melanjutkan eksekusi sebelum proses anak selesai.
+* fclose(file);: Setelah selesai membaca file konfigurasi, file ditutup dengan fclose.
+```bash
+void read_config_and_launch(const char *filename) {
+    FILE *file = fopen(filename, "r");
+    if (!file) {
+        perror("Failed to open file");
+        return;
+    }
+
+    char app[MAX_NAME_LENGTH];
+    int count;
+    char *apps[MAX_APPS];
+    int counts[MAX_APPS];
+    int n = 0;
+
+    while (fscanf(file, "%s %d", app, &count) == 2) {
+        apps[n] = strdup(app);
+        counts[n] = count;
+        n++;
+    }
+
+    fclose(file);
+    launch_applications(apps, counts, n, filename);
+
+    for (int i = 0; i < n; i++) 
+        free(apps[i]);
+}
+```
+* FILE *file = fopen(filename, "r");: Fungsi fopen digunakan untuk membuka file dengan nama yang diberikan dalam mode "r" (artinya, membaca). Hasilnya disimpan dalam pointer file. Jika pembukaan file gagal, fopen akan mengembalikan NULL.
+* char app[MAX_NAME_LENGTH]; int count;: Variabel lokal app digunakan untuk menyimpan nama aplikasi, sedangkan variabel count digunakan untuk menyimpan jumlah instance aplikasi yang akan diluncurkan.
+* char *apps[MAX_APPS]; int counts[MAX_APPS]; int n = 0;: apps adalah array pointer ke string yang akan menyimpan nama aplikasi, dan counts adalah array integer yang akan menyimpan jumlah instance dari masing-masing aplikasi. n adalah jumlah aplikasi yang telah dibaca dari file.
+* while (fscanf(file, "%s %d", app, &count) == 2) { ... }: Melakukan loop untuk membaca baris demi baris dari file konfigurasi. Setiap baris terdiri dari nama aplikasi dan jumlah instance, dipisahkan oleh spasi. fscanf membaca dua token (nama aplikasi dan jumlah instance) dari setiap baris, dan loop berlanjut selama fscanf berhasil membaca keduanya.
+* apps[n] = strdup(app); counts[n] = count; n++;: Setiap kali sebuah baris dibaca dari file, nama aplikasi disalin ke dalam array apps menggunakan strdup (untuk menghindari masalah dengan memori yang diatur ulang), dan jumlah instance disimpan di array counts. n ditambahkan setiap kali baris berhasil dibaca.
+* fclose(file);: Setelah semua baris dibaca, file ditutup dengan menggunakan fclose.
+* launch_applications(apps, counts, n, filename);: Setelah konfigurasi dibaca, fungsi launch_applications dipanggil untuk meluncurkan aplikasi sesuai dengan konfigurasi yang dibaca dari file.
+* for (int i = 0; i < n; i++) free(apps[i]);: Setelah semua aplikasi diluncurkan, memori yang dialokasikan untuk menyimpan nama aplikasi dengan menggunakan strdup harus dibebaskan kembali dengan free untuk menghindari kebocoran memori.
+```bash
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        fprintf(stderr, "Usage: %s -o <app1> <num1> ... | -f <config_file> | -k [config_file]\n", argv[0]);
+        return 1;
+    }
+
+    if (strcmp(argv[1], "-o") == 0) {
+        char *apps[MAX_APPS];
+        int counts[MAX_APPS];
+        int n = 0;
+        
+        for (int i = 2; i < argc; i += 2) {
+            apps[n] = argv[i];
+            counts[n] = atoi(argv[i + 1]);
+            n++;
+        }
+
+        launch_applications(apps, counts, n, "command-line");
+    } else if (strcmp(argv[1], "-f") == 0 && argc == 3) {
+        read_config_and_launch(argv[2]);
+    } else if (strcmp(argv[1], "-k") == 0) {
+        if (argc == 3) {
+            kill_applications_from_config(argv[2]);
+        } else {
+            kill_applications_from_command_line();
+        }
+    } else {
+        fprintf(stderr, "Invalid command or arguments\n");
+        return 1;
+    }
+
+    return 0;
+}
+```
+* if (argc < 2) { ... }: Memeriksa apakah jumlah argumen yang diberikan kurang dari 2. Jika iya, program akan mencetak pesan penggunaan yang menjelaskan cara menggunakan program dan kemudian keluar dengan kode kesalahan 1.
+* if (strcmp(argv[1], "-o") == 0) { ... }: Memeriksa apakah argumen pertama (argv[1]) adalah -o, yang menandakan bahwa pengguna ingin meluncurkan aplikasi dari baris perintah dengan argumen berikutnya berisi nama aplikasi dan jumlahnya. Jika benar, program akan melakukan langkah-langkah berikut:a. Membuat array apps dan counts untuk menyimpan nama aplikasi dan jumlahnya.b. Melakukan iterasi melalui argumen berikutnya (argv[i]) dimulai dari indeks 2, yang merupakan nama aplikasi.c. Setiap aplikasi dan jumlahnya ditambahkan ke dalam array apps dan counts.d. Memanggil fungsi launch_applications dengan argumen yang sesuai untuk meluncurkan aplikasi.
+* else if (strcmp(argv[1], "-f") == 0 && argc == 3) { ... }: Memeriksa apakah argumen pertama adalah -f dan jumlah total argumen adalah 3. Jika ya, ini menunjukkan bahwa pengguna ingin membaca konfigurasi aplikasi dari file. Program akan memanggil fungsi read_config_and_launch dengan argumen yang sesuai untuk membaca file konfigurasi dan meluncurkan aplikasi sesuai dengan konfigurasi tersebut.
+* else if (strcmp(argv[1], "-k") == 0) { ... }: Memeriksa apakah argumen pertama adalah -k, yang menandakan bahwa pengguna ingin menutup aplikasi. Jika ya, program akan memeriksa jumlah argumen tambahan.a. Jika jumlah argumen adalah 3, ini menunjukkan bahwa pengguna ingin menutup aplikasi yang ditentukan dalam file konfigurasi. Program akan memanggil kill_applications_from_config dengan argumen yang sesuai.b. Jika jumlah argumen tidak sama dengan 3, ini menunjukkan bahwa pengguna ingin menutup aplikasi tertentu (firefox dan gedit) dari baris perintah. Program akan memanggil kill_applications_from_command_line.
+* else { ... }: Jika argumen tidak cocok dengan opsi yang valid, program akan mencetak pesan kesalahan dan keluar dengan kode kesalahan 1.
