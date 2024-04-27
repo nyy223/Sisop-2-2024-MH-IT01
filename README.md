@@ -191,460 +191,150 @@ File virus.log sempat tidak terbuat saat sudah menjalankan program, karena perin
 ## Soal 2
 > Ryan 5027231046
 
-1. Global Variable for Mode
+Dalam soal ini kita disuruh untuk membangun sebuah sistem manajemen file dan backup/restore yang dirancang untuk lingkungan Linux. Ini dimaksudkan untuk melakukan otomasi berbagai operasi file, termasuk mengunduh, mengekstrak, mendekripsi, mengubah nama, dan menghapus file. Selain itu, menyediakan fungsionalitas untuk backup dan restore file untuk memastikan integritas dan pemulihan data. Sistem ini dirancang untuk berjalan sebagai daemon, memungkinkan operasi di latar belakang tanpa intervensi pengguna.
 
+### Fitur
+
+* **Operasi File Otomatis**: Mengotomatiskan serangkaian operasi file termasuk mengunduh, mengekstrak, mendekripsi, mengubah nama, dan menghapus file.
+* **Backup dan Restore**: Mampu melakukan backup dan restore file untuk memastikan integritas dan pemulihan data.
+* **Pengelolaan Sinyal**: Merespons sinyal untuk beralih antara mode default, mode backup, dan mode restore.
+* **Mode Daemon**: Berjalan sebagai daemon, memungkinkan operasi di latar belakang.
+* **Penutupan yang Efisien**: Dapat ditutup dengan aman dan efisien untuk menghindari beban sistem.
+
+### Memulai
+#### Persyaratan
+
+* Lingkungan Linux
+* Kompiler C (misalnya, gcc)
+* Pustaka C standar
+
+#### Instalasi
+
+* Kloning repositori atau unduh kode sumber.
+* Kompilasi kode sumber menggunakan kompiler C. Misalnya, menggunakan gcc:
+
+```sh
+gcc -o management management.c
 ```
-#define DEFAULT_MODE 0
-#define BACKUP_MODE 1
-#define RESTORE_MODE 2
 
-volatile sig_atomic_t mode = DEFAULT_MODE;
+* Jalankan program yang dikompilasi.
+
+### Penggunaan
+
+Program ini dapat dijalankan dengan argumen baris perintah untuk menentukan mode operasi. Secara default, program ini berjalan dalam mode default. Untuk berjalan dalam mode backup atau restore, gunakan opsi -m diikuti oleh backup atau restore.
+
+```sh
+./management
+./management -m backup
+./management -m restore
 ```
-Variabel global untuk menyimpan mode operasi saat ini. Mode ini dapat diubah melalui sinyal yang diterima dari sistem operasi.
+### Mode default
 
-2. Function Definitions
-a. write_data
+Program ini akan secara otomatis masuk ke dalam mode default yang terdiri atas fungsi yang memanggil fungsi lain untuk melakukan tugas masing-masing. Sebagian besar dari sub-fungsi tersebut menggunakan `fork()` dan `exec()` sesuai keperluan. Fungsi yang terlibat sebagai berikut:
 
-```
-size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    return fwrite(ptr, size, nmemb, stream);
+```c
+void runDefault() {
+    fileReset();
+    fileDownload();
+    fileUnzip();
+    fileDecrypt();
+    fileRename();
+    fileDelete();
 }
 ```
 
-Fungsi ini digunakan sebagai callback oleh libcurl untuk menulis data yang diunduh ke file.
+### Mode backup/restore
 
-b. download_file
+Program ini akan masuk ke dalam mode backup atau restore bila diberikan argumen yang sesuai di belakang opsi -m. Dalam mode backup, file terpindah dari library ke dalam folder backup. Sedangkan dalam mode restore, file terpindah dari folder backup kembali ke folder library. Fungsi yang terlibat sebagai berikut:
 
-```
-void download_file(const char *url, const char *filename) {
-    CURL *curl;
-    FILE *fp;
-    CURLcode res;
+```c
+case 1:
+    runBackup();
+    break;
 
-    curl = curl_easy_init();
-    if (curl) {
-        fp = fopen(filename, "wb");
-        if (!fp) {
-            perror("Cannot open file for writing");
-            curl_easy_cleanup(curl);
-            return;
-        }
-
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        }
-
-        fclose(fp);
-        curl_easy_cleanup(curl);
-    } else {
-        fprintf(stderr, "Failed to init curl\n");
-    }
-}
+case 2:
+    runRestore();
+    break;
 ```
 
-Fungsi ini mengatur libcurl untuk mengunduh file dari URL yang ditentukan dan menyimpannya sebagai file lokal.
+### Sinyal
 
-c. extract_zip
+Inisiasi mode signal sebagai berikut:
+```c
+volatile sig_atomic_t mode = 0;
 
-```
-void extract_zip(const char *archive_filepath) {
-    int err;
-    zip_t *za = zip_open(archive_filepath, 0, &err);
-    if (!za) {
-        fprintf(stderr, "Failed to open zip file %s (error %d)\n", archive_filepath, err);
-        return;
-    }
-
-    zip_int64_t num_entries = zip_get_num_entries(za, 0);
-    for (zip_int64_t i = 0; i < num_entries; i++) {
-        const char *filename = zip_get_name(za, i, 0);
-        if (filename[strlen(filename) - 1] == '/') {
-            continue;  // Skip directories
-        }
-
-        zip_file_t *zf = zip_fopen_index(za, i, 0);
-        char filepath[1024];
-        sprintf(filepath, "./library/%s", filename);
-        FILE *fout = fopen(filepath, "wb");
-        if (!fout) {
-            fprintf(stderr, "Error opening %s for writing.\n", filepath);
-            zip_fclose(zf);
-            continue;
-        }
-
-        char buffer[4096];
-        zip_int64_t bytes_read;
-        while ((bytes_read = zip_fread(zf, buffer, sizeof(buffer))) > 0) {
-            fwrite(buffer, 1, bytes_read, fout);
-        }
-
-        fclose(fout);
-        zip_fclose(zf);
-    }
-
-    zip_close(za);
+void set_runDefault(int sig) { 
+    mode = 0; 
 }
 
-```
-
-Fungsi ini membuka file ZIP yang diunduh dan mengekstrak isi ke dalam direktori yang ditentukan.
-
-d. rot19_char and decrypt_rot19
-
-```
-char rot19_char(char c) {
-    if (!isalpha(c)) return c;
-    char base = islower(c) ? 'a' : 'A';
-    return (c - base + 19) % 26 + base;
+void initiate_backup_process(int sig) { 
+    mode = 1; 
 }
 
-void decrypt_rot19(char *filename) {
-    for (int i = 0; filename[i]; i++) {
-        filename[i] = rot19_char(filename[i]);
-    }
+void start_restore_process(int sig) { 
+    mode = 2; 
+}
+
+void terminate_program(int sig) { 
+    exit(0);
 }
 ```
 
-Fungsi ini mengimplementasikan algoritma ROT19 untuk mendekripsi nama file.
+Dan agar signal dapat dipanggil menggunakan:
 
-e. process_files
-
-```
-void process_files(const char *directory) {
-    DIR *dir;
-    struct dirent *entry;
-    char path[1024];
-    int file_count = 0;
-
-    dir = opendir(directory);
-    if (dir == NULL) {
-        perror("Failed to open directory");
-        return;
-    }
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
-
-            file_count++;
-            if (file_count > 6) { // Only decrypt files starting from the 7th file
-                char new_filename[1024];
-                strcpy(new_filename, entry->d_name);
-                decrypt_rot19(new_filename);
-
-                char new_filepath[1024];
-                snprintf(new_filepath, sizeof(new_filepath), "%s/%s", directory, new_filename);
-                rename(path, new_filepath);
-
-                log_event(new_filename, "Decrypted");
-            }
-        }
-    }
-
-    closedir(dir);
-}
-
+```c
+signal(SIGRTMIN, set_runDefault);
+signal(SIGUSR1, initiate_backup_process);
+signal(SIGUSR2, start_restore_process);
+signal(SIGKILL, terminate_program);
 ```
 
-Fungsi ini memproses file dalam direktori, mendekripsi nama file, dan melakukan tindakan berdasarkan nama file yang telah didekripsi.
+Program ini merespons sinyal berikut:
 
-f. create_directory
+* SIGRTMIN: Beralih ke mode default.
+* SIGUSR1: Memulai proses backup.
+* SIGUSR2: Memulai proses restore.
+* SIGKILL: Menghentikan program.
 
+Contoh penggunaan signal adalah dengan mengetik command pada terminal sebagai berikut.
+
+```sh
+# Format:
+kill -<kode signal> <pid>
+# Contoh:
+kill -SIGRTMIN 13478
 ```
-void create_directory(const char *path) {
-    struct stat st = {0};
-    if (stat(path, &st) == -1) {
-        mkdir(path, 0755);
-        printf("Directory created: %s\n", path);
-    } else {
-        printf("Directory already exists: %s\n", path);
-    }
+
+### Logging
+
+Sistem kerja logging pada program ini menggunakan `fprintf` yang tersebar di seluruh fungsi penting yang terhubung dengan satu file log khusus (history.log). Berikut contoh panggilan log pada `fileDelete()`:
+
+```c
+// Inisiasi log (main)
+getcwd(workingDirectory, sizeof(workingDirectory));
+strcpy(pathToFile, workingDirectory);
+strcpy(pathToLogFile, pathToFile);
+strcat(pathToLogFile, "/history.log");
+
+// Inisiasi variabel pada log (main)
+username = (char*)malloc(1024);
+username = getlogin();
+runtime = time(NULL);
+digitime = localtime(&runtime);
+
+// Contoh panggilan log
+FILE *file = fopen(pathToLogFile, "a"); 
+if (file != NULL) {  
+    fprintf(file, "[%s][%02d:%02d:%02d] - %s - Successfully deleted.\n", username, digitime->tm_hour, digitime->tm_min, digitime->tm_sec, filename); 
+    fclose(file); 
 }
 ```
 
-Fungsi ini membuat direktori jika belum ada. Digunakan untuk menyiapkan struktur direktori yang diperlukan oleh program.
+### Dokumentasi
 
-g. setup_signal_handlers and handle_signal
+Screenshot dari keberhasilan seluruh fitur program ini adalah sebagai berikut:
 
-```
-void setup_signal_handlers() {
-    signal(SIGRTMIN+0, handle_signal); // SIGRTMIN for mode default
-    signal(SIGUSR1, handle_signal);    // SIGUSR1 for mode backup
-    signal(SIGUSR2, handle_signal);    // SIGUSR2 for mode restore
-}
-
-void handle_signal(int sig) {
-    switch(sig) {
-        case SIGRTMIN+0:
-            mode = DEFAULT_MODE;
-            printf("Switched to default mode\n");
-            break;
-        case SIGUSR1:
-            mode = BACKUP_MODE;
-            printf("Switched to backup mode\n");
-            break;
-        case SIGUSR2:
-            mode = RESTORE_MODE;
-            printf("Switched to restore mode\n");
-            break;
-    }
-}
-
-```
-
-h. log_event
-
-```
-void log_event(const char *filename, const char *action) {
-    FILE *log_file = fopen("history.log", "a");
-    if (log_file != NULL) {
-        time_t now = time(NULL);
-        struct tm *t = localtime(&now);
-        fprintf(log_file, "[%s][%02d:%02d:%02d] - %s - %s\n", getenv("USER"), t->tm_hour, t->tm_min, t->tm_sec, filename, action);
-        fclose(log_file);
-    }
-}
-```
-
-3. main Function
-
-```
-int main(int argc, char *argv[]) {
-    const char *url = "https://drive.google.com/uc?export=download&id=1rUIZmp10lXLtCIH3LAZJzRPeRks3Crup";
-    const char *zip_filename = "library.zip";
-    const char *extract_dir = "./library";
-    const char *backup_dir = "./library/backup";
-
-    create_directory(extract_dir);
-    create_directory(backup_dir);
-
-    download_file(url, zip_filename);
-    extract_zip(zip_filename);
-
-    process_files(extract_dir);
-
-    setup_signal_handlers();
-
-    while (1) {
-        pause(); // Wait for signals
-    }
-
-    return 0;
-}
-```
-Fungsi utama yang menjalankan inisialisasi, pengunduhan, ekstraksi, dan pemrosesan file. Ini juga mengatur daemon untuk berjalan terus menerus dan menunggu sinyal.
-
-```
-#include <stdio.h>
-#include <stdlib.h>
-#include <curl/curl.h>
-#include <zip.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/stat.h>
-#include <ctype.h>
-#include <dirent.h>
-#include <signal.h>
-#include <time.h>
-
-#define DEFAULT_MODE 0
-#define BACKUP_MODE 1
-#define RESTORE_MODE 2
-
-volatile sig_atomic_t mode = DEFAULT_MODE;
-char *backup_dir = "./library/backup/";
-
-size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-    return fwrite(ptr, size, nmemb, stream);
-}
-
-void download_file(const char *url, const char *filename) {
-    CURL *curl;
-    FILE *fp;
-    CURLcode res;
-
-    curl = curl_easy_init();
-    if (curl) {
-        fp = fopen(filename, "wb");
-        if (!fp) {
-            perror("Cannot open file for writing");
-            curl_easy_cleanup(curl);
-            return;
-        }
-
-        curl_easy_setopt(curl, CURLOPT_URL, url);
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-        curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-
-        res = curl_easy_perform(curl);
-        if (res != CURLE_OK) {
-            fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror(res));
-        }
-
-        fclose(fp);
-        curl_easy_cleanup(curl);
-    } else {
-        fprintf(stderr, "Failed to init curl\n");
-    }
-}
-
-void extract_zip(const char *archive_filepath) {
-    int err;
-    zip_t *za = zip_open(archive_filepath, 0, &err);
-    if (!za) {
-        fprintf(stderr, "Failed to open zip file %s (error %d)\n", archive_filepath, err);
-        return;
-    }
-
-    zip_int64_t num_entries = zip_get_num_entries(za, 0);
-    for (zip_int64_t i = 0; i < num_entries; i++) {
-        const char *filename = zip_get_name(za, i, 0);
-        if (filename[strlen(filename) - 1] == '/') {
-            continue;  // Skip directories
-        }
-
-        zip_file_t *zf = zip_fopen_index(za, i, 0);
-        char filepath[1024];
-        sprintf(filepath, "./library/%s", filename);
-        FILE *fout = fopen(filepath, "wb");
-        if (!fout) {
-            fprintf(stderr, "Error opening %s for writing.\n", filepath);
-            zip_fclose(zf);
-            continue;
-        }
-
-        char buffer[4096];
-        zip_int64_t bytes_read;
-        while ((bytes_read = zip_fread(zf, buffer, sizeof(buffer))) > 0) {
-            fwrite(buffer, 1, bytes_read, fout);
-        }
-
-        fclose(fout);
-        zip_fclose(zf);
-    }
-
-    zip_close(za);
-}
-
-char rot19_char(char c) {
-    if (!isalpha(c)) return c;
-    char base = islower(c) ? 'a' : 'A';
-    return (c - base + 19) % 26 + base;
-}
-
-void decrypt_rot19(char *filename) {
-    for (int i = 0; filename[i]; i++) {
-        filename[i] = rot19_char(filename[i]);
-    }
-}
-
-void process_files(const char *directory) {
-    DIR *dir;
-    struct dirent *entry;
-    char path[1024];
-    int file_count = 0;
-
-    dir = opendir(directory);
-    if (dir == NULL) {
-        perror("Failed to open directory");
-        return;
-    }
-
-    while ((entry = readdir(dir)) != NULL) {
-        if (entry->d_type == DT_REG) {
-            snprintf(path, sizeof(path), "%s/%s", directory, entry->d_name);
-
-            file_count++;
-            if (file_count > 6) { // Only decrypt files starting from the 7th file
-                char new_filename[1024];
-                strcpy(new_filename, entry->d_name);
-                decrypt_rot19(new_filename);
-
-                char new_filepath[1024];
-                snprintf(new_filepath, sizeof(new_filepath), "%s/%s", directory, new_filename);
-                rename(path, new_filepath);
-
-                log_event(new_filename, "Decrypted");
-            }
-        }
-    }
-
-    closedir(dir);
-}
-
-void create_directory(const char *path) {
-    struct stat st = {0};
-    if (stat(path, &st) == -1) {
-        mkdir(path, 0755);
-        printf("Directory created: %s\n", path);
-    } else {
-        printf("Directory already exists: %s\n", path);
-    }
-}
-
-void setup_signal_handlers() {
-    signal(SIGRTMIN+0, handle_signal); // SIGRTMIN for mode default
-    signal(SIGUSR1, handle_signal);    // SIGUSR1 for mode backup
-    signal(SIGUSR2, handle_signal);    // SIGUSR2 for mode restore
-}
-
-void handle_signal(int sig) {
-    switch(sig) {
-        case SIGRTMIN+0:
-            mode = DEFAULT_MODE;
-            printf("Switched to default mode\n");
-            break;
-        case SIGUSR1:
-            mode = BACKUP_MODE;
-            printf("Switched to backup mode\n");
-            break;
-        case SIGUSR2:
-            mode = RESTORE_MODE;
-            printf("Switched to restore mode\n");
-            break;
-    }
-}
-
-void log_event(const char *filename, const char *action) {
-    FILE *log_file = fopen("history.log", "a");
-    if (log_file != NULL) {
-        time_t now = time(NULL);
-        struct tm *t = localtime(&now);
-        fprintf(log_file, "[%s][%02d:%02d:%02d] - %s - %s\n", getenv("USER"), t->tm_hour, t->tm_min, t->tm_sec, filename, action);
-        fclose(log_file);
-    }
-}
-
-int main(int argc, char *argv[]) {
-    const char *url = "https://drive.google.com/uc?export=download&id=1rUIZmp10lXLtCIH3LAZJzRPeRks3Crup";
-    const char *zip_filename = "library.zip";
-    const char *extract_dir = "./library";
-    const char *backup_dir = "./library/backup";
-
-    create_directory(extract_dir);
-    create_directory(backup_dir);
-
-    download_file(url, zip_filename);
-    extract_zip(zip_filename);
-
-    process_files(extract_dir);
-
-    setup_signal_handlers();
-
-    while (1) {
-        pause(); // Wait for signals
-    }
-
-    return 0;
-}
-```
+![alt](https://cdn.discordapp.com/attachments/1164912781678624779/1233806682203750420/Screenshot_2024-04-27_22_45_39.png?ex=662e6f84&is=662d1e04&hm=e97d7ccd11c1de516fb3fa20e5a1c82d8eab0806cbb853de292339dc6c52d364&)
 
 
 ## Soal 3
