@@ -48,6 +48,16 @@ void kill_applications_from_command_line() {
     } else {
         wait(NULL);
     }
+    
+    pid = fork();
+    if (pid == 0) {
+        execlp("pkill", "pkill", "libreoffice", NULL);
+        exit(0);
+    } else if (pid < 0) {
+        perror("Error: Fork failed");
+    } else {
+        wait(NULL);
+    }
 }
 
 void kill_applications_from_config(const char* source) {
