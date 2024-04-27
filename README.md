@@ -1389,6 +1389,12 @@ int main(int argc, char *argv[]) {
     return 0;
   }
   ```
+  * Pada bagian fungsi untuk mematikan aplikasi, awalnya saya menggunakan kill sigterm. Tetapi pada akhirnya saya menggunakan pkill untuk mematikan aplikasi. Dokumentasi error untuk kode yang lama :
+<img width="1440" alt="kendala no4 (gabisa kill)" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/b79adce6-f24b-4409-98a4-83c0193de7cb">
+Terdapat pesan "No running application", padahal aplikasi yang diinginkan sedang terbuka.
+
 #### Kendala yang dialami
 <img width="1440" alt="Screenshot 2024-04-27 at 19 56 30" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/8b763ce8-560c-43db-a417-3fcfe1ee5c0c">
+Terdapat pesan exiting due to channel error saat ingin mematikan aplikasi yang dibuka dari command line
 <img width="1440" alt="Screenshot 2024-04-27 at 19 59 22" src="https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/33895949-31c2-40a0-bc5f-eb10d298a940">
+Ada masalah saat ingin mematikan aplikasi yang dibuka dari file config
