@@ -189,6 +189,7 @@ File virus.log sempat tidak terbuat saat sudah menjalankan program, karena perin
 ![kendala no1](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/80509033/304d58a5-cd81-4d9d-aa54-80a39500bbaa)
 
 ## Soal 2
+> Ryan 5027231046
 
 1. Global Variable for Mode
 
