@@ -1022,3 +1022,42 @@ int main(int argc, char *argv[]) {
 ![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/59f205ef-5ee3-44e8-8659-450c6445538f)
 ![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/b24e1b3b-4286-4ae4-a812-b3beb9d760ea)
 ![image](https://github.com/nyy223/Sisop-2-2024-MH-IT01/assets/151918510/85719c9f-9531-4333-b0a0-e17afb7d743a)
+
+## Soal 4
+> Nayla 5027231054
+
+Soal nomor 4 meminta kita untuk membuat sebuah program bernama virus.c yang dapat membuka lebih dari satu aplikasi dan lebih dari satu instance untuk masing-masing aplikasi. Adapun ketentuan untuk input perintahnya adalah :
+a. ./setup -o firefox 2 wireshark 2
+Program akan membuka 2 jendela aplikasi firefox dan 2 jendela aplikasi wireshark.
+Program juga dapat membuka aplikasi dengan menggunakan file konfigurasi dengan menggunakan 
+b. ./setup -f file.conf 
+Format file konfigurasi dibebaskan, namun pastikan dapat menjalankan fitur dari poin 2.
+Contoh isi file.conf:
+Firefox 2
+Wireshark 3
+Ketika menjalankan command contoh, program akan membuka 2 jendela aplikasi firefox dan 3 jendela aplikasi wireshark.
+
+Selain itu, program juga dapat mematikan aplikasi yang sedang dibuka. Ketentuannya adalah :
+./setup -k
+Program juga dapat mematikan aplikasi yang dijalankan sesuai dengan file konfigurasi. 
+Contohnya: 
+./setup -k file.conf 
+Command ini hanya mematikan aplikasi yang dijalankan dengan 
+./setup -f file.conf
+
+### Penyelesaian
+```bash
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <signal.h>
+```
+Adalah beberapa libraries yang digunakan dalam kode ini. Fungsi dari masing-masing library adalah:
+* #include <stdio.h>: Mendefinisikan fungsi-fungsi standar untuk input dan output.
+* #include <stdlib.h>: Mendefinisikan fungsi-fungsi standar untuk alokasi memori, konversi angka, dan fungsi umum lainnya.
+* #include <string.h>: Mendefinisikan fungsi-fungsi standar untuk manipulasi string.
+* #include <unistd.h>: Mendefinisikan fungsi-fungsi standar untuk sistem operasi POSIX (Portable Operating System Interface).
+* #include <sys/wait.h>: Mendefinisikan fungsi-fungsi untuk mengelola proses yang sedang menunggu.
+* #include <signal.h>: Mendefinisikan fungsi-fungsi untuk penanganan sinyal.
